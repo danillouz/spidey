@@ -1,2 +1,3 @@
 # spidey
-Your friendly web spider
+
+Your friendly web spider.
