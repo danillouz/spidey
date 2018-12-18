@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -15,7 +16,6 @@ type Links []string
 func main() {
 	flag.Parse()
 	urls := flag.Args()
-
 	if len(urls) < 1 {
 		log.Fatal("provide an URL, for example https://news.ycombinator.com/news")
 	}
@@ -29,27 +29,42 @@ func main() {
 	}
 	defer resp.Body.Close()
 
-	links := Links{}
-	z := html.NewTokenizer(resp.Body)
+	linksp := &Links{}
+	findLinks(linksp, resp.Body)
+	fmt.Println("\nfound links:", *linksp)
+}
+
+func findLinks(l *Links, r io.Reader) {
+	z := html.NewTokenizer(r)
 
 	for {
 		tt := z.Next()
 
 		switch {
 		case tt == html.ErrorToken:
-			fmt.Println("\nfound links:", links)
 			return
 		case tt == html.StartTagToken:
 			t := z.Token()
+			ok, link := getLink(t)
+			if !ok {
+				continue
+			}
 
-			if t.Data == "a" {
-				for _, attr := range t.Attr {
-					if attr.Key == "href" {
-						links = append(links, attr.Val)
-						break
-					}
-				}
+			*l = append(*l, link)
+		}
+	}
+}
+
+func getLink(t html.Token) (ok bool, link string) {
+	if t.Data == "a" {
+		for _, attr := range t.Attr {
+			if attr.Key == "href" {
+				ok = true
+				link = attr.Val
+				break
 			}
 		}
 	}
+
+	return
 }
