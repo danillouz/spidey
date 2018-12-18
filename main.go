@@ -6,35 +6,46 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"golang.org/x/net/html"
 )
 
-// Links contains all links of a crawled page.
-type Links []string
+const FILTER = "/allerhande/recept/"
+
+var visited = map[string]bool{}
 
 func main() {
 	flag.Parse()
-	urls := flag.Args()
-	if len(urls) < 1 {
+	uris := flag.Args()
+	if len(uris) < 1 {
 		log.Fatal("provide an URL, for example https://news.ycombinator.com/news")
 	}
 
-	url := urls[0]
-	fmt.Printf("crawling %s", url)
+	jobs := make(chan string)
+	go func() {
+		jobs <- uris[0]
+	}()
 
-	resp, err := http.Get(url)
+	for uri := range jobs {
+		crawl(uri, jobs)
+	}
+}
+
+func crawl(uri string, jobs chan string) {
+	fmt.Println("crawling", uri)
+
+	resp, err := http.Get(uri)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
 
-	linksp := &Links{}
-	findLinks(linksp, resp.Body)
-	fmt.Println("\nfound links:", *linksp)
+	findLinks(resp.Body, jobs, uri)
 }
 
-func findLinks(l *Links, r io.Reader) {
+func findLinks(r io.Reader, jobs chan string, base string) {
 	z := html.NewTokenizer(r)
 
 	for {
@@ -50,7 +61,18 @@ func findLinks(l *Links, r io.Reader) {
 				continue
 			}
 
-			*l = append(*l, link)
+			go func() {
+				if ok := visited[link]; ok {
+					fmt.Println("cached", link)
+					return
+				}
+
+				if valid := strings.HasPrefix(link, FILTER); valid {
+					visited[link] = true
+					abs := getAbsLink(link, base)
+					jobs <- abs
+				}
+			}()
 		}
 	}
 }
@@ -67,4 +89,19 @@ func getLink(t html.Token) (ok bool, link string) {
 	}
 
 	return
+}
+
+func getAbsLink(link, base string) string {
+	l, err := url.Parse(link)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	b, err := url.Parse(base)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	abs := b.ResolveReference(l)
+	return abs.String()
 }
