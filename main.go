@@ -12,28 +12,27 @@ import (
 	"golang.org/x/net/html"
 )
 
-const FILTER = "/allerhande/recept/"
-
 var visited = map[string]bool{}
 
 func main() {
+	urip := flag.String("uri", "", "The URI of the page to crawl. For example ;'https://news.ycombinator.com/news'.")
+	filterp := flag.String("filter", "", "Only these links will be crawled. For example '/news'.")
 	flag.Parse()
-	uris := flag.Args()
-	if len(uris) < 1 {
-		log.Fatal("provide an URL, for example https://news.ycombinator.com/news")
-	}
+
+	fmt.Println("uri", *urip)
+	fmt.Println("filter", *filterp)
 
 	jobs := make(chan string)
 	go func() {
-		jobs <- uris[0]
+		jobs <- *urip
 	}()
 
 	for uri := range jobs {
-		crawl(uri, jobs)
+		crawl(uri, jobs, *filterp)
 	}
 }
 
-func crawl(uri string, jobs chan string) {
+func crawl(uri string, jobs chan string, filter string) {
 	fmt.Println("crawling", uri)
 
 	resp, err := http.Get(uri)
@@ -42,10 +41,10 @@ func crawl(uri string, jobs chan string) {
 	}
 	defer resp.Body.Close()
 
-	findLinks(resp.Body, jobs, uri)
+	findLinks(resp.Body, jobs, uri, filter)
 }
 
-func findLinks(r io.Reader, jobs chan string, base string) {
+func findLinks(r io.Reader, jobs chan string, base, filter string) {
 	z := html.NewTokenizer(r)
 
 	for {
@@ -67,7 +66,7 @@ func findLinks(r io.Reader, jobs chan string, base string) {
 					return
 				}
 
-				if valid := strings.HasPrefix(link, FILTER); valid {
+				if valid := strings.HasPrefix(link, filter); valid {
 					visited[link] = true
 					abs := getAbsLink(link, base)
 					jobs <- abs
