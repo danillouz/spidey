@@ -50,29 +50,49 @@ func main() {
 	fmt.Println("uri", *urip)
 	fmt.Println("filter", *filterp)
 
-	jobs := make(chan string)
-	go func() {
-		jobs <- *urip
-	}()
-
-	for uri := range jobs {
-		crawl(uri, jobs, *filterp)
-	}
+	depth := 3
+	crawl(*urip, *filterp, depth)
 }
 
-func crawl(uri string, jobs chan string, filter string) {
-	fmt.Println("crawling", uri)
+func crawl(uri, filter string, depth int) {
+	if depth < 1 {
+		fmt.Println("\tdone")
+		return
+	}
 
+	fmt.Println("crawling", uri)
 	resp, err := http.Get(uri)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
 
-	findLinks(resp.Body, jobs, uri, filter)
+	visited.Add(uri)
+	links := findLinks(resp.Body, uri, filter)
+
+	done := make(chan bool)
+	for i, l := range links {
+		fmt.Printf("\t>> %v/%v processing %v\n", i, len(links), l)
+
+		if ok := visited.Link(l); ok {
+			fmt.Println("\t!! cached", l)
+			continue
+		}
+
+		go func(uri string) {
+			crawl(uri, filter, depth-1)
+			done <- true
+		}(l)
+	}
+
+	for i, l := range links {
+		fmt.Printf("\t<< %v/%v waiting %v\n", i, len(links), l)
+		<-done
+	}
 }
 
-func findLinks(r io.Reader, jobs chan string, base, filter string) {
+func findLinks(r io.Reader, base, filter string) []string {
+	links := []string{}
 	z := html.NewTokenizer(r)
 
 	for {
@@ -80,7 +100,7 @@ func findLinks(r io.Reader, jobs chan string, base, filter string) {
 
 		switch {
 		case tt == html.ErrorToken:
-			return
+			return links
 		case tt == html.StartTagToken:
 			t := z.Token()
 			link, ok := getLink(t)
@@ -88,18 +108,10 @@ func findLinks(r io.Reader, jobs chan string, base, filter string) {
 				continue
 			}
 
-			go func() {
-				if ok := visited.Link(link); ok {
-					fmt.Println("\tcached", link)
-					return
-				}
-
-				if valid := strings.HasPrefix(link, filter); valid {
-					visited.Add(link)
-					abs := getAbsLink(link, base)
-					jobs <- abs
-				}
-			}()
+			if valid := strings.HasPrefix(link, filter); valid {
+				abs := getAbsLink(link, base)
+				links = append(links, abs)
+			}
 		}
 	}
 }
