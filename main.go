@@ -8,14 +8,39 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"golang.org/x/net/html"
 )
 
-var visited = map[string]bool{}
+type Cache struct {
+	links map[string]bool
+	mux   sync.Mutex
+}
+
+func (c *Cache) Add(l string) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if _, ok := c.links[l]; !ok {
+		c.links[l] = true
+	}
+}
+
+func (c *Cache) Link(l string) bool {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	_, ok := c.links[l]
+	return ok
+}
+
+var visited = Cache{
+	links: map[string]bool{},
+}
 
 func main() {
-	urip := flag.String("uri", "", "The URI of the page to crawl. For example ;'https://news.ycombinator.com/news'.")
+	urip := flag.String("uri", "", "The URI of the page to crawl. For example 'https://news.ycombinator.com/news'.")
 	filterp := flag.String("filter", "", "Only these links will be crawled. For example '/news'.")
 	flag.Parse()
 
@@ -30,6 +55,8 @@ func main() {
 	for uri := range jobs {
 		crawl(uri, jobs, *filterp)
 	}
+
+	fmt.Println(">>>")
 }
 
 func crawl(uri string, jobs chan string, filter string) {
@@ -61,13 +88,13 @@ func findLinks(r io.Reader, jobs chan string, base, filter string) {
 			}
 
 			go func() {
-				if ok := visited[link]; ok {
+				if ok := visited.Link(link); ok {
 					fmt.Println("cached", link)
 					return
 				}
 
 				if valid := strings.HasPrefix(link, filter); valid {
-					visited[link] = true
+					visited.Add(link)
 					abs := getAbsLink(link, base)
 					jobs <- abs
 				}
