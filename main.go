@@ -13,11 +13,13 @@ import (
 	"golang.org/x/net/html"
 )
 
+// Cache keeps track of visited links and implements a mutex.
 type Cache struct {
 	links map[string]bool
 	mux   sync.Mutex
 }
 
+// Add caches a visited link to prevent loops and crawl more efficiently.
 func (c *Cache) Add(l string) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
@@ -27,6 +29,7 @@ func (c *Cache) Add(l string) {
 	}
 }
 
+// Link checks if a link has been visited already.
 func (c *Cache) Link(l string) bool {
 	c.mux.Lock()
 	defer c.mux.Unlock()
@@ -55,8 +58,6 @@ func main() {
 	for uri := range jobs {
 		crawl(uri, jobs, *filterp)
 	}
-
-	fmt.Println(">>>")
 }
 
 func crawl(uri string, jobs chan string, filter string) {
@@ -89,7 +90,7 @@ func findLinks(r io.Reader, jobs chan string, base, filter string) {
 
 			go func() {
 				if ok := visited.Link(link); ok {
-					fmt.Println("cached", link)
+					fmt.Println("\tcached", link)
 					return
 				}
 
