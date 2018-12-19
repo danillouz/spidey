@@ -55,7 +55,7 @@ func findLinks(r io.Reader, jobs chan string, base, filter string) {
 			return
 		case tt == html.StartTagToken:
 			t := z.Token()
-			ok, link := getLink(t)
+			link, ok := getLink(t)
 			if !ok {
 				continue
 			}
@@ -76,7 +76,7 @@ func findLinks(r io.Reader, jobs chan string, base, filter string) {
 	}
 }
 
-func getLink(t html.Token) (ok bool, link string) {
+func getLink(t html.Token) (link string, ok bool) {
 	if t.Data == "a" {
 		for _, attr := range t.Attr {
 			if attr.Key == "href" {
