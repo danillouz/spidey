@@ -2,18 +2,22 @@
 
 Your friendly web spider.
 
-## Go Modules
+## Usage
 
-Initialize:
-
-```
-go mod init github.com/danillouz/spidey
-```
-
-Add deps to `go.mod`:
+To compile and install the CLI binary, navigate to the root dir and run:
 
 ```
-go get -u ./...
+> go install ./...
 ```
 
-_Commit `go.mod` and `go.sum`._
+Then to see how to use the CLI run:
+
+```
+> spidey --help
+```
+
+For example:
+
+```
+> spidey -uri=https://news.ycombinator.com/news -filter=http
+```
