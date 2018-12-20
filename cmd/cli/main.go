@@ -10,13 +10,13 @@ import (
 )
 
 func main() {
-	urip := flag.String("uri", "", "The URI of the page to crawl. For example 'https://news.ycombinator.com/news'.")
-	filterp := flag.String("filter", "", "Only these links will be crawled. For example '/news'.")
-	depthp := flag.Int("depth", 1, "How many levels of child links will be crawled. For example '6'")
+	urip := flag.String("uri", "", "The URI of the web page to crawl. For example https://news.ycombinator.com/news.")
+	filterp := flag.String("filter", "", "Only the links that have this prefix will be crawled. For example /news.")
+	depthp := flag.Int("depth", 1, "How many levels of child links you'd like to crawl. For example 6")
 	flag.Parse()
 
 	if *urip == "" {
-		log.Fatal("A URI must be provided in order to crawl a webpage.")
+		log.Fatal("Provide a URI to crawl a webpage.")
 	}
 
 	f := fetcher.New()
