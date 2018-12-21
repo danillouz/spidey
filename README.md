@@ -21,3 +21,11 @@ For example:
 ```
 > spidey -uri=https://news.ycombinator.com/news -filter=http
 ```
+
+## Tests
+
+In the root dir run:
+
+```
+go test ./...
+```
